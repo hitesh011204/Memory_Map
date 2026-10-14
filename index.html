@@ -1,19 +1,177 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Memory Map</title>
-        <link rel="stylesheet" href="style.css">
-        <link rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-        <link rel="manifest" href="manifest.json">
-    </head>
-    <body>
-        <h1>Memory Map</h1>
-        <button id="locate-btn">◎ My Location</button>
-        <div id="map"></div>
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-        <script src="script.js"></script>
-    </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="theme-color" content="#2e6b50">
+    <title>Memory Map</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Leaflet map styles -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    >
+
+    <!-- PWA manifest -->
+    <link rel="manifest" href="manifest.json">
+</head>
+
+<body>
+
+    <h1>Memory Map</h1>
+
+    <!-- Place search -->
+    <form id="search-form">
+        <input
+            type="text"
+            id="search-input"
+            placeholder="Search for a place..."
+            required
+        >
+        <button type="submit">Search</button>
+    </form>
+
+    <!-- Search results -->
+    <div id="search-results"></div>
+
+    <!-- Map: keep only one map container -->
+    <div id="map"></div>
+
+    <!-- My Location button -->
+    <button id="locate-btn" type="button">
+        ◎ My Location
+    </button>
+
+
+    <!-- ================================= -->
+    <!-- ADD OR EDIT MEMORY FORM           -->
+    <!-- ================================= -->
+
+    <div id="memory-modal" class="modal" hidden>
+
+        <form id="memory-form" class="memory-form">
+
+            <h2 id="memory-form-heading">Add a Memory</h2>
+
+            <label for="memory-title">Title</label>
+            <input
+                type="text"
+                id="memory-title"
+                placeholder="e.g. Evening at the lake"
+                required
+            >
+
+            <label for="memory-notes">Your Notes</label>
+            <textarea
+                id="memory-notes"
+                placeholder="What do you want to remember?"
+                rows="5"
+            ></textarea>
+
+            <label for="memory-photo">Upload a Photo</label>
+            <input
+                type="file"
+                id="memory-photo"
+                accept="image/*"
+            >
+
+            <p id="current-photo-label" class="current-photo-label"></p>
+
+            <label for="memory-lat">Latitude</label>
+            <input
+                type="number"
+                id="memory-lat"
+                step="any"
+                required
+            >
+
+            <label for="memory-lon">Longitude</label>
+            <input
+                type="number"
+                id="memory-lon"
+                step="any"
+                required
+            >
+
+            <div class="memory-actions">
+                <button type="submit">Save Memory</button>
+
+                <button type="button" id="cancel-memory">
+                    Cancel
+                </button>
+            </div>
+
+        </form>
+    </div>
+
+
+    <!-- ================================= -->
+    <!-- FULL-SCREEN MEMORY VIEWER         -->
+    <!-- ================================= -->
+
+    <div id="memory-view-modal" class="modal" hidden>
+
+        <article class="memory-view">
+
+            <!-- Close viewer -->
+            <button
+                type="button"
+                id="close-memory-view"
+                class="close-view"
+                aria-label="Close memory"
+            >
+                ×
+            </button>
+
+            <!-- Saved photo -->
+            <img
+                id="view-memory-photo"
+                alt="Memory photo"
+                hidden
+            >
+
+            <!-- Memory details -->
+            <div class="memory-view-content">
+
+                <h2 id="view-memory-title"></h2>
+
+                <p id="view-memory-notes"></p>
+
+                <p
+                    id="view-memory-location"
+                    class="memory-location"
+                ></p>
+
+                <div class="memory-actions">
+
+                    <button type="button" id="edit-memory">
+                        Edit Memory
+                    </button>
+
+                    <button type="button" id="close-memory-button">
+                        Close
+                    </button>
+
+                </div>
+
+            </div>
+        </article>
+    </div>
+
+
+    <!-- ================================= -->
+    <!-- JAVASCRIPT                       -->
+    <!-- ================================= -->
+
+    <!-- Load Leaflet before script.js -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Your application logic -->
+    <script src="script.js"></script>
+
+</body>
 </html>
