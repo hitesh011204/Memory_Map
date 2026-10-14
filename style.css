@@ -640,3 +640,53 @@ button:focus-visible {
         height: 42px;
     }
 }
+/* =====================================
+   PHOTO AND VIDEO GALLERY
+===================================== */
+
+.memory-photo-gallery {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px;
+}
+
+.memory-media-item {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #f2f2f2;
+}
+
+.memory-media-item img,
+.memory-media-item video {
+    display: block;
+    width: 100%;
+    max-height: 60vh;
+    object-fit: contain;
+    background: #111;
+}
+
+.delete-media-btn {
+    display: block;
+    margin: 8px 8px 8px auto;
+    padding: 9px 13px;
+    border: none;
+    border-radius: 8px;
+    background: #b42318;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.delete-media-btn:hover {
+    background: #8f1c13;
+}
+
+@media (max-width: 480px) {
+    .memory-media-item img,
+    .memory-media-item video {
+        max-height: 50vh;
+    }
+}

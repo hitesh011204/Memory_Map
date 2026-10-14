@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <meta name="theme-color" content="#2e6b50">
-    <meta name="description" content="Save your places, photos, and memories on your personal map.">
+    <meta name="description" content="Save your places, photos, videos, and memories on your personal map.">
 
     <title>Memory Map</title>
 
@@ -42,6 +42,7 @@
     >
 
         <form id="search-form">
+
             <input
                 type="search"
                 id="search-input"
@@ -62,6 +63,7 @@
             >
                 ×
             </button>
+
         </form>
 
         <div
@@ -116,7 +118,10 @@
 
             <h2 id="memory-form-heading">Add a Memory</h2>
 
+
+            <!-- Memory title -->
             <label for="memory-title">Title</label>
+
             <input
                 type="text"
                 id="memory-title"
@@ -125,7 +130,10 @@
                 required
             >
 
+
+            <!-- Memory notes -->
             <label for="memory-notes">Your Notes</label>
+
             <textarea
                 id="memory-notes"
                 placeholder="What do you want to remember?"
@@ -133,8 +141,9 @@
             ></textarea>
 
 
-            <!-- Multiple photos per memory -->
+            <!-- Add multiple photos -->
             <label for="memory-photo">Add Photos</label>
+
             <input
                 type="file"
                 id="memory-photo"
@@ -143,10 +152,28 @@
             >
 
             <p class="photo-help">
-                Select multiple photos. When editing, new photos
-                will be added to the existing collection.
+                You can select multiple photos. When editing a memory,
+                newly selected photos will be added to the existing ones.
             </p>
 
+
+            <!-- Add multiple videos -->
+            <label for="memory-video">Add Videos</label>
+
+            <input
+                type="file"
+                id="memory-video"
+                accept="video/*"
+                multiple
+            >
+
+            <p class="photo-help">
+                You can also attach multiple videos to this memory.
+                Existing media will be kept when you edit the memory.
+            </p>
+
+
+            <!-- Information about existing media -->
             <p
                 id="current-photo-label"
                 class="current-photo-label"
@@ -156,6 +183,7 @@
 
             <!-- Memory coordinates -->
             <label for="memory-lat">Latitude</label>
+
             <input
                 type="number"
                 id="memory-lat"
@@ -165,7 +193,9 @@
                 required
             >
 
+
             <label for="memory-lon">Longitude</label>
+
             <input
                 type="number"
                 id="memory-lon"
@@ -195,7 +225,7 @@
 
 
     <!-- ================================= -->
-    <!-- FULL-SCREEN MEMORY VIEWER         -->
+    <!-- MEMORY VIEWER                     -->
     <!-- ================================= -->
 
     <div
@@ -221,6 +251,7 @@
 
             <div class="memory-view-content">
 
+                <!-- Memory details -->
                 <h2 id="view-memory-title"></h2>
 
                 <p id="view-memory-notes"></p>
@@ -231,14 +262,18 @@
                 ></p>
 
 
-                <!-- JavaScript inserts all saved photos here -->
+                <!--
+                    JavaScript adds saved photos and videos here.
+                    Each media item will have its own delete button.
+                -->
                 <div
                     id="memory-photo-gallery"
                     class="memory-photo-gallery"
-                    aria-label="Memory photos"
+                    aria-label="Memory photos and videos"
                 ></div>
 
 
+                <!-- Viewer actions -->
                 <div class="memory-actions">
 
                     <button type="button" id="edit-memory">
