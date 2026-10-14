@@ -1,0 +1,8 @@
+{
+    "name": "Memory Map",
+    "short_name": "MemoryMap",
+    "start_url": "./",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#2e6b50"
+}
