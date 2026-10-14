@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <meta name="theme-color" content="#2e6b50">
-    <title>Memory Map</title>
+    <meta name="description" content="Save your places, photos, and memories on your personal map.">
 
-    <!-- CSS -->
-    <link rel="stylesheet" href="style.css">
+    <title>Memory Map</title>
 
     <!-- Leaflet map styles -->
     <link
@@ -16,42 +15,102 @@
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     >
 
+    <!-- Application styles -->
+    <link rel="stylesheet" href="style.css">
+
     <!-- PWA manifest -->
     <link rel="manifest" href="manifest.json">
 </head>
 
 <body>
 
-    <h1>Memory Map</h1>
+    <!-- ================================= -->
+    <!-- FULL-SCREEN MAP                  -->
+    <!-- ================================= -->
 
-    <!-- Place search -->
-    <form id="search-form">
-        <input
-            type="text"
-            id="search-input"
-            placeholder="Search for a place..."
-            required
+    <main id="map" aria-label="Your personal memory map"></main>
+
+
+    <!-- ================================= -->
+    <!-- FLOATING PLACE SEARCH            -->
+    <!-- ================================= -->
+
+    <section
+        id="search-panel"
+        class="search-panel is-hidden"
+        aria-label="Search for a place"
+    >
+
+        <form id="search-form">
+            <input
+                type="search"
+                id="search-input"
+                placeholder="Search for a place..."
+                aria-label="Place name"
+                autocomplete="off"
+                required
+            >
+
+            <button type="submit" id="search-button">
+                Search
+            </button>
+
+            <button
+                type="button"
+                id="hide-search"
+                aria-label="Hide search"
+            >
+                ×
+            </button>
+        </form>
+
+        <div
+            id="search-results"
+            role="list"
+            aria-live="polite"
+        ></div>
+
+    </section>
+
+
+    <!-- ================================= -->
+    <!-- MAP CONTROLS                      -->
+    <!-- ================================= -->
+
+    <div class="map-controls">
+
+        <button
+            id="search-toggle"
+            type="button"
+            aria-label="Show place search"
+            aria-expanded="false"
         >
-        <button type="submit">Search</button>
-    </form>
+            Search
+        </button>
 
-    <!-- Search results -->
-    <div id="search-results"></div>
+        <button
+            id="locate-btn"
+            type="button"
+            aria-label="Find my current location"
+        >
+            ◎ My Location
+        </button>
 
-    <!-- Map: keep only one map container -->
-    <div id="map"></div>
-
-    <!-- My Location button -->
-    <button id="locate-btn" type="button">
-        ◎ My Location
-    </button>
+    </div>
 
 
     <!-- ================================= -->
-    <!-- ADD OR EDIT MEMORY FORM           -->
+    <!-- ADD OR EDIT MEMORY                -->
     <!-- ================================= -->
 
-    <div id="memory-modal" class="modal" hidden>
+    <div
+        id="memory-modal"
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="memory-form-heading"
+        hidden
+    >
 
         <form id="memory-form" class="memory-form">
 
@@ -62,6 +121,7 @@
                 type="text"
                 id="memory-title"
                 placeholder="e.g. Evening at the lake"
+                maxlength="120"
                 required
             >
 
@@ -69,23 +129,39 @@
             <textarea
                 id="memory-notes"
                 placeholder="What do you want to remember?"
-                rows="5"
+                rows="4"
             ></textarea>
 
-            <label for="memory-photo">Upload a Photo</label>
+
+            <!-- Multiple photos per memory -->
+            <label for="memory-photo">Add Photos</label>
             <input
                 type="file"
                 id="memory-photo"
                 accept="image/*"
+                multiple
             >
 
-            <p id="current-photo-label" class="current-photo-label"></p>
+            <p class="photo-help">
+                Select multiple photos. When editing, new photos
+                will be added to the existing collection.
+            </p>
 
+            <p
+                id="current-photo-label"
+                class="current-photo-label"
+                aria-live="polite"
+            ></p>
+
+
+            <!-- Memory coordinates -->
             <label for="memory-lat">Latitude</label>
             <input
                 type="number"
                 id="memory-lat"
                 step="any"
+                min="-90"
+                max="90"
                 required
             >
 
@@ -94,18 +170,27 @@
                 type="number"
                 id="memory-lon"
                 step="any"
+                min="-180"
+                max="180"
                 required
             >
 
+
+            <!-- Form actions -->
             <div class="memory-actions">
-                <button type="submit">Save Memory</button>
+
+                <button type="submit" id="save-memory">
+                    Save Memory
+                </button>
 
                 <button type="button" id="cancel-memory">
                     Cancel
                 </button>
+
             </div>
 
         </form>
+
     </div>
 
 
@@ -113,11 +198,17 @@
     <!-- FULL-SCREEN MEMORY VIEWER         -->
     <!-- ================================= -->
 
-    <div id="memory-view-modal" class="modal" hidden>
+    <div
+        id="memory-view-modal"
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="view-memory-title"
+        hidden
+    >
 
         <article class="memory-view">
 
-            <!-- Close viewer -->
             <button
                 type="button"
                 id="close-memory-view"
@@ -127,14 +218,7 @@
                 ×
             </button>
 
-            <!-- Saved photo -->
-            <img
-                id="view-memory-photo"
-                alt="Memory photo"
-                hidden
-            >
 
-            <!-- Memory details -->
             <div class="memory-view-content">
 
                 <h2 id="view-memory-title"></h2>
@@ -145,6 +229,15 @@
                     id="view-memory-location"
                     class="memory-location"
                 ></p>
+
+
+                <!-- JavaScript inserts all saved photos here -->
+                <div
+                    id="memory-photo-gallery"
+                    class="memory-photo-gallery"
+                    aria-label="Memory photos"
+                ></div>
+
 
                 <div class="memory-actions">
 
@@ -159,7 +252,9 @@
                 </div>
 
             </div>
+
         </article>
+
     </div>
 
 
@@ -167,10 +262,10 @@
     <!-- JAVASCRIPT                       -->
     <!-- ================================= -->
 
-    <!-- Load Leaflet before script.js -->
+    <!-- Leaflet must load before script.js -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- Your application logic -->
+    <!-- Application logic -->
     <script src="script.js"></script>
 
 </body>

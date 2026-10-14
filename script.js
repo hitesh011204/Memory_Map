@@ -13,13 +13,18 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 
 // =============================================
-// 2. USER GPS LOCATION
+// 2. GPS LOCATION
 // =============================================
 
 let userMarker = null;
 let accuracyCircle = null;
 
 function locateUser() {
+    if (!navigator.geolocation) {
+        alert('Your browser does not support location.');
+        return;
+    }
+
     map.locate({
         setView: true,
         maxZoom: 17,
@@ -27,10 +32,8 @@ function locateUser() {
     });
 }
 
-// When GPS location is found
 map.on('locationfound', function (e) {
-
-    if (userMarker === null) {
+    if (!userMarker) {
         userMarker = L.marker(e.latlng).addTo(map);
     } else {
         userMarker.setLatLng(e.latlng);
@@ -38,8 +41,7 @@ map.on('locationfound', function (e) {
 
     userMarker.bindPopup('You are here!');
 
-    // Display GPS accuracy
-    if (accuracyCircle === null) {
+    if (!accuracyCircle) {
         accuracyCircle = L.circle(e.latlng, {
             radius: e.accuracy
         }).addTo(map);
@@ -49,22 +51,24 @@ map.on('locationfound', function (e) {
     }
 });
 
-// If GPS fails, the map can still be used
 map.on('locationerror', function (e) {
     console.error('Location error:', e.message);
 });
 
-// My Location button
 document.getElementById('locate-btn')
     .addEventListener('click', locateUser);
 
-// Automatically request location when the app opens
+// Request location when the app opens.
 locateUser();
 
 
 // =============================================
-// 3. PLACE SEARCH
+// 3. SEARCH PANEL
 // =============================================
+
+const searchPanel = document.getElementById('search-panel');
+const searchToggle = document.getElementById('search-toggle');
+const hideSearch = document.getElementById('hide-search');
 
 const searchForm = document.getElementById('search-form');
 const searchInput = document.getElementById('search-input');
@@ -72,17 +76,45 @@ const searchResults = document.getElementById('search-results');
 
 let searchMarker = null;
 
-searchForm.addEventListener('submit', async function (event) {
+function showSearchPanel() {
+    searchPanel.classList.remove('is-hidden');
+}
 
+function hideSearchPanel() {
+    searchPanel.classList.add('is-hidden');
+    searchResults.replaceChildren();
+}
+
+searchToggle.addEventListener('click', function () {
+    if (searchPanel.classList.contains('is-hidden')) {
+        showSearchPanel();
+        searchInput.focus();
+    } else {
+        hideSearchPanel();
+    }
+});
+
+hideSearch.addEventListener('click', hideSearchPanel);
+
+// Tapping the map reveals the search panel.
+map.on('click', function () {
+    showSearchPanel();
+});
+
+
+// =============================================
+// 4. PLACE SEARCH
+// =============================================
+
+searchForm.addEventListener('submit', async function (event) {
     event.preventDefault();
 
     const place = searchInput.value.trim();
 
-    if (place === '') {
+    if (!place) {
         return;
     }
 
-    // Show loading message
     searchResults.replaceChildren();
 
     const loading = document.createElement('p');
@@ -92,10 +124,10 @@ searchForm.addEventListener('submit', async function (event) {
     searchResults.appendChild(loading);
 
     try {
-
         const url =
-            'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q='
-            + encodeURIComponent(place);
+            'https://nominatim.openstreetmap.org/search' +
+            '?format=jsonv2&limit=5&q=' +
+            encodeURIComponent(place);
 
         const response = await fetch(url);
 
@@ -107,9 +139,7 @@ searchForm.addEventListener('submit', async function (event) {
 
         searchResults.replaceChildren();
 
-        // No matching locations
         if (results.length === 0) {
-
             const message = document.createElement('p');
             message.textContent = 'No places found. Try another search.';
             message.style.padding = '12px';
@@ -118,9 +148,7 @@ searchForm.addEventListener('submit', async function (event) {
             return;
         }
 
-        // Display search results
         results.forEach(function (location) {
-
             const button = document.createElement('button');
 
             button.type = 'button';
@@ -136,15 +164,13 @@ searchForm.addEventListener('submit', async function (event) {
 
             button.append(name, address);
 
-            // Select a search result
             button.addEventListener('click', function () {
-
                 const lat = Number(location.lat);
                 const lon = Number(location.lon);
 
                 map.setView([lat, lon], 16);
 
-                if (searchMarker !== null) {
+                if (searchMarker) {
                     map.removeLayer(searchMarker);
                 }
 
@@ -154,15 +180,14 @@ searchForm.addEventListener('submit', async function (event) {
                     .bindPopup(location.display_name)
                     .openPopup();
 
-                searchResults.replaceChildren();
+                hideSearchPanel();
             });
 
             searchResults.appendChild(button);
         });
 
     } catch (error) {
-
-        console.error(error);
+        console.error('Search error:', error);
 
         searchResults.replaceChildren();
 
@@ -177,16 +202,16 @@ searchForm.addEventListener('submit', async function (event) {
 
 
 // =============================================
-// 4. LOCAL MEMORY DATABASE
+// 5. LOCAL DATABASE
 // =============================================
 
-// IndexedDB saves memories and photos in this browser.
-const memoryDBPromise = new Promise(function (resolve, reject) {
+// Keep the existing database name and version.
+// This preserves memories already saved in IndexedDB.
 
+const memoryDBPromise = new Promise(function (resolve, reject) {
     const request = indexedDB.open('MemoryMapDB', 1);
 
     request.onupgradeneeded = function (event) {
-
         const db = event.target.result;
 
         if (!db.objectStoreNames.contains('memories')) {
@@ -208,7 +233,7 @@ const memoryDBPromise = new Promise(function (resolve, reject) {
 
 
 // =============================================
-// 5. HTML ELEMENTS AND VARIABLES
+// 6. HTML ELEMENTS
 // =============================================
 
 // Memory form
@@ -225,31 +250,56 @@ const cancelMemory = document.getElementById('cancel-memory');
 
 // Memory viewer
 const memoryViewModal = document.getElementById('memory-view-modal');
-const viewMemoryPhoto = document.getElementById('view-memory-photo');
+const memoryPhotoGallery = document.getElementById('memory-photo-gallery');
 const viewMemoryTitle = document.getElementById('view-memory-title');
 const viewMemoryNotes = document.getElementById('view-memory-notes');
 const viewMemoryLocation = document.getElementById('view-memory-location');
+
 const closeMemoryView = document.getElementById('close-memory-view');
 const closeMemoryButton = document.getElementById('close-memory-button');
 const editMemoryButton = document.getElementById('edit-memory');
 
-// Track the memory currently being created or edited
+
+// =============================================
+// 7. MEMORY VARIABLES
+// =============================================
+
 let selectedLocation = null;
 let editingMemoryId = null;
 let currentMemory = null;
 
-// Keep track of memory markers to prevent duplicates
 const memoryMarkers = new Map();
 
-// Temporary URL used to display a saved photo
-let viewerImageURL = null;
+// Track temporary URLs created for gallery images.
+let viewerImageURLs = [];
 
 
 // =============================================
-// 6. OPEN A FORM FOR A NEW MEMORY
+// 8. PHOTO COMPATIBILITY
 // =============================================
 
-// Double-click the map to add a memory
+// New memories use "photos".
+// Older memories may contain one "photo" property.
+
+function getMemoryPhotos(memory) {
+    if (Array.isArray(memory.photos)) {
+        return memory.photos;
+    }
+
+    if (memory.photo) {
+        return [memory.photo];
+    }
+
+    return [];
+}
+
+
+// =============================================
+// 9. OPEN A NEW MEMORY FORM
+// =============================================
+
+// Double-click the map to add a memory.
+
 map.doubleClickZoom.disable();
 
 map.on('dblclick', function (e) {
@@ -257,7 +307,6 @@ map.on('dblclick', function (e) {
 });
 
 function openNewMemoryForm(latlng) {
-
     memoryForm.reset();
 
     editingMemoryId = null;
@@ -265,9 +314,7 @@ function openNewMemoryForm(latlng) {
     selectedLocation = latlng;
 
     formHeading.textContent = 'Add a Memory';
-
-    currentPhotoLabel.textContent =
-        'Choose an optional photo.';
+    currentPhotoLabel.textContent = 'Choose one or more optional photos.';
 
     memoryLat.value = latlng.lat;
     memoryLon.value = latlng.lng;
@@ -279,15 +326,29 @@ function openNewMemoryForm(latlng) {
 
 
 // =============================================
-// 7. OPEN A SAVED MEMORY
+// 10. RELEASE VIEWER PHOTO URLS
+// =============================================
+
+function clearViewerPhotos() {
+    viewerImageURLs.forEach(function (url) {
+        URL.revokeObjectURL(url);
+    });
+
+    viewerImageURLs = [];
+    memoryPhotoGallery.replaceChildren();
+}
+
+
+// =============================================
+// 11. OPEN A SAVED MEMORY
 // =============================================
 
 function openMemoryViewer(memory) {
-
     currentMemory = memory;
 
-    viewMemoryTitle.textContent = memory.title;
+    clearViewerPhotos();
 
+    viewMemoryTitle.textContent = memory.title;
     viewMemoryNotes.textContent =
         memory.notes || 'No notes added yet.';
 
@@ -295,50 +356,45 @@ function openMemoryViewer(memory) {
         'Latitude: ' + memory.lat +
         ' | Longitude: ' + memory.lon;
 
-    // Release any previously created photo URL
-    if (viewerImageURL !== null) {
-        URL.revokeObjectURL(viewerImageURL);
-        viewerImageURL = null;
-    }
+    const photos = getMemoryPhotos(memory);
 
-    // Display the saved photo, if one exists
-    if (memory.photo) {
+    photos.forEach(function (photo) {
+        const image = document.createElement('img');
 
-        viewerImageURL = URL.createObjectURL(memory.photo);
+        image.alt = 'Photo from ' + memory.title;
+        image.loading = 'lazy';
 
-        viewMemoryPhoto.src = viewerImageURL;
-        viewMemoryPhoto.hidden = false;
+        const imageURL = URL.createObjectURL(photo);
 
-    } else {
+        viewerImageURLs.push(imageURL);
+        image.src = imageURL;
 
-        viewMemoryPhoto.removeAttribute('src');
-        viewMemoryPhoto.hidden = true;
-    }
+        memoryPhotoGallery.appendChild(image);
+    });
 
     memoryViewModal.hidden = false;
 }
 
 
 // =============================================
-// 8. CREATE OR UPDATE A MEMORY MARKER
+// 12. CREATE OR UPDATE A MEMORY MARKER
 // =============================================
 
 function addMemoryMarker(memory) {
-
-    // Remove the old marker when updating a memory
+    // Remove the previous marker if this memory was edited.
     const oldMarker = memoryMarkers.get(memory.id);
 
     if (oldMarker) {
         map.removeLayer(oldMarker);
     }
 
-    // Create the marker at the memory's coordinates
     const marker = L.marker([
         memory.lat,
         memory.lon
     ]).addTo(map);
 
-    // Open the full-screen viewer when the marker is clicked
+    marker.bindTooltip(memory.title);
+
     marker.on('click', function () {
         openMemoryViewer(memory);
     });
@@ -348,18 +404,16 @@ function addMemoryMarker(memory) {
 
 
 // =============================================
-// 9. EDIT AN EXISTING MEMORY
+// 13. EDIT AN EXISTING MEMORY
 // =============================================
 
 editMemoryButton.addEventListener('click', function () {
-
     if (!currentMemory) {
         return;
     }
 
     const memory = currentMemory;
 
-    // Remember which saved memory is being edited
     editingMemoryId = memory.id;
 
     selectedLocation = L.latLng(
@@ -367,7 +421,6 @@ editMemoryButton.addEventListener('click', function () {
         memory.lon
     );
 
-    // Fill the form with existing information
     memoryForm.reset();
 
     memoryTitle.value = memory.title;
@@ -375,14 +428,19 @@ editMemoryButton.addEventListener('click', function () {
     memoryLat.value = memory.lat;
     memoryLon.value = memory.lon;
 
-    // Do not require the user to upload the photo again
-    currentPhotoLabel.textContent = memory.photo
-        ? 'A photo is already saved. Choose another photo to replace it.'
-        : 'No photo currently saved.';
+    const photoCount = getMemoryPhotos(memory).length;
+
+    if (photoCount > 0) {
+        currentPhotoLabel.textContent =
+            photoCount + ' photo(s) already saved. ' +
+            'Choose additional photos to keep the existing ones.';
+    } else {
+        currentPhotoLabel.textContent =
+            'No photos saved yet. Choose optional photos.';
+    }
 
     formHeading.textContent = 'Edit Memory';
 
-    // Switch from the viewer to the edit form
     memoryViewModal.hidden = true;
     memoryModal.hidden = false;
 
@@ -391,21 +449,14 @@ editMemoryButton.addEventListener('click', function () {
 
 
 // =============================================
-// 10. CLOSE THE VIEWER OR CANCEL THE FORM
+// 14. CLOSE THE MEMORY VIEWER
 // =============================================
 
 function closeMemoryViewer() {
-
     memoryViewModal.hidden = true;
     currentMemory = null;
 
-    // Release the temporary photo URL
-    if (viewerImageURL !== null) {
-        URL.revokeObjectURL(viewerImageURL);
-        viewerImageURL = null;
-    }
-
-    viewMemoryPhoto.removeAttribute('src');
+    clearViewerPhotos();
 }
 
 closeMemoryView.addEventListener('click', closeMemoryViewer);
@@ -413,9 +464,11 @@ closeMemoryView.addEventListener('click', closeMemoryViewer);
 closeMemoryButton.addEventListener('click', closeMemoryViewer);
 
 
-// Cancel adding or editing a memory
-cancelMemory.addEventListener('click', function () {
+// =============================================
+// 15. CANCEL ADDING OR EDITING
+// =============================================
 
+cancelMemory.addEventListener('click', function () {
     memoryModal.hidden = true;
 
     editingMemoryId = null;
@@ -423,15 +476,16 @@ cancelMemory.addEventListener('click', function () {
     currentMemory = null;
 
     memoryForm.reset();
+
+    currentPhotoLabel.textContent = 'Choose one or more optional photos.';
 });
 
 
 // =============================================
-// 11. SAVE A NEW OR EDITED MEMORY
+// 16. SAVE A NEW OR EDITED MEMORY
 // =============================================
 
 memoryForm.addEventListener('submit', async function (event) {
-
     event.preventDefault();
 
     const title = memoryTitle.value.trim();
@@ -440,13 +494,11 @@ memoryForm.addEventListener('submit', async function (event) {
     const lat = Number(memoryLat.value);
     const lon = Number(memoryLon.value);
 
-    // Validate title
     if (!title) {
         alert('Please enter a title.');
         return;
     }
 
-    // Validate coordinates
     if (
         memoryLat.value.trim() === '' ||
         memoryLon.value.trim() === '' ||
@@ -462,7 +514,6 @@ memoryForm.addEventListener('submit', async function (event) {
     }
 
     try {
-
         const db = await memoryDBPromise;
 
         const isEditing = editingMemoryId !== null;
@@ -471,32 +522,35 @@ memoryForm.addEventListener('submit', async function (event) {
             ? currentMemory
             : null;
 
-        const newPhoto = memoryPhoto.files[0] || null;
+        // Get every newly selected photo.
+        const newPhotos = Array.from(memoryPhoto.files || []);
 
-        // Build the memory record
+        // Preserve existing photos and append the new ones.
+        const existingPhotos = existingMemory
+            ? getMemoryPhotos(existingMemory)
+            : [];
+
         const memory = {
+            ...(existingMemory || {}),
 
             title: title,
             notes: notes,
-
             lat: lat,
             lon: lon,
 
-            // Keep the old photo if no replacement was selected
-            photo: newPhoto ||
-                (existingMemory ? existingMemory.photo : null),
+            photos: existingPhotos.concat(newPhotos),
 
-            // Preserve the original creation time when editing
+            // Preserve the original creation date on edits.
             createdAt: existingMemory
                 ? existingMemory.createdAt
                 : new Date().toISOString()
         };
 
+        // Keep the record ID when editing.
         if (isEditing) {
             memory.id = editingMemoryId;
         }
 
-        // Open a read/write transaction
         const transaction = db.transaction(
             'memories',
             'readwrite'
@@ -504,53 +558,48 @@ memoryForm.addEventListener('submit', async function (event) {
 
         const store = transaction.objectStore('memories');
 
-        // Update an existing record or create a new one
         const request = isEditing
             ? store.put(memory)
             : store.add(memory);
 
         request.onsuccess = function () {
-
             if (!isEditing) {
                 memory.id = request.result;
             }
         };
 
         transaction.oncomplete = function () {
-
-            // Update the map marker
             addMemoryMarker(memory);
 
-            // Close and reset the form
             memoryModal.hidden = true;
             memoryForm.reset();
 
             editingMemoryId = null;
             selectedLocation = null;
             currentMemory = null;
+
+            currentPhotoLabel.textContent =
+                'Choose one or more optional photos.';
         };
 
         transaction.onerror = function () {
+            console.error('Save transaction failed:', transaction.error);
             alert('Could not save your memory. Please try again.');
         };
 
     } catch (error) {
-
         console.error('Memory saving error:', error);
-
-        alert('Local storage failed. Please try again.');
+        alert('Could not access local storage. Please try again.');
     }
 });
 
 
 // =============================================
-// 12. LOAD SAVED MEMORIES ON STARTUP
+// 17. LOAD SAVED MEMORIES
 // =============================================
 
 async function loadMemories() {
-
     try {
-
         const db = await memoryDBPromise;
 
         const transaction = db.transaction(
@@ -559,11 +608,9 @@ async function loadMemories() {
         );
 
         const store = transaction.objectStore('memories');
-
         const request = store.getAll();
 
         request.onsuccess = function () {
-
             const memories = request.result;
 
             memories.forEach(function (memory) {
@@ -576,10 +623,9 @@ async function loadMemories() {
         };
 
     } catch (error) {
-
         console.error('Database error:', error);
     }
 }
 
-// Load all saved memory pins when the app starts
+// Restore the memory pins whenever the app starts.
 loadMemories();
