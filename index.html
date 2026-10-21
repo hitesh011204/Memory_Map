@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -25,10 +26,89 @@
 <body>
 
     <!-- ================================= -->
+    <!-- HOME MEMORY CALENDAR              -->
+    <!-- ================================= -->
+
+    <section
+        id="home-calendar-panel"
+        class="calendar-panel"
+        aria-label="Home memory calendar"
+    >
+        <div class="calendar-panel-heading">
+            <div>
+                <h2>My Memory Calendar</h2>
+                <p>Every place has a story. Find yours.</p>
+            </div>
+
+            <button
+                type="button"
+                id="home-calendar-toggle"
+                aria-expanded="false"
+                aria-controls="home-calendar-content"
+            >
+                Show calendar
+            </button>
+        </div>
+
+        <div id="home-calendar-content" hidden>
+
+            <div class="calendar-navigation">
+                <button
+                    type="button"
+                    id="home-calendar-prev"
+                    aria-label="Previous month"
+                >‹</button>
+
+                <h3 id="home-calendar-month">October 2026</h3>
+
+                <button
+                    type="button"
+                    id="home-calendar-next"
+                    aria-label="Next month"
+                >›</button>
+            </div>
+
+            <div class="calendar-weekdays" aria-hidden="true">
+                <span>Sun</span>
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+                <span>Thu</span>
+                <span>Fri</span>
+                <span>Sat</span>
+            </div>
+
+            <!-- JavaScript will generate calendar dates here. -->
+            <div
+                id="home-calendar-grid"
+                class="calendar-grid"
+                aria-label="Memory calendar dates"
+            ></div>
+
+            <h3 id="home-selected-date-heading">
+                Memories for selected date
+            </h3>
+
+            <!-- Locations visited on the selected date. -->
+            <div
+                id="home-day-memories"
+                aria-live="polite"
+            >
+                <p>Select a date to explore your memories.</p>
+            </div>
+
+        </div>
+    </section>
+
+
+    <!-- ================================= -->
     <!-- FULL-SCREEN MAP                  -->
     <!-- ================================= -->
 
-    <main id="map" aria-label="Your personal memory map"></main>
+    <main
+        id="map"
+        aria-label="Your personal memory map"
+    ></main>
 
 
     <!-- ================================= -->
@@ -40,7 +120,6 @@
         class="search-panel is-hidden"
         aria-label="Search for a place"
     >
-
         <form id="search-form">
 
             <input
@@ -71,7 +150,6 @@
             role="list"
             aria-live="polite"
         ></div>
-
     </section>
 
 
@@ -118,7 +196,6 @@
 
             <h2 id="memory-form-heading">Add a Memory</h2>
 
-
             <!-- Memory title -->
             <label for="memory-title">Title</label>
 
@@ -130,6 +207,20 @@
                 required
             >
 
+            <!-- Visit date -->
+            <label for="memory-visit-date">Date of visit</label>
+
+            <input
+                type="date"
+                id="memory-visit-date"
+                name="visitDate"
+                required
+            >
+
+            <p class="photo-help">
+                Choose the day this memory happened. You can record
+                an earlier visit even if you're adding it today.
+            </p>
 
             <!-- Memory notes -->
             <label for="memory-notes">Your Notes</label>
@@ -139,7 +230,6 @@
                 placeholder="What do you want to remember?"
                 rows="4"
             ></textarea>
-
 
             <!-- Add multiple photos -->
             <label for="memory-photo">Add Photos</label>
@@ -156,7 +246,6 @@
                 newly selected photos will be added to the existing ones.
             </p>
 
-
             <!-- Add multiple videos -->
             <label for="memory-video">Add Videos</label>
 
@@ -172,14 +261,12 @@
                 Existing media will be kept when you edit the memory.
             </p>
 
-
             <!-- Information about existing media -->
             <p
                 id="current-photo-label"
                 class="current-photo-label"
                 aria-live="polite"
             ></p>
-
 
             <!-- Memory coordinates -->
             <label for="memory-lat">Latitude</label>
@@ -193,7 +280,6 @@
                 required
             >
 
-
             <label for="memory-lon">Longitude</label>
 
             <input
@@ -204,7 +290,6 @@
                 max="180"
                 required
             >
-
 
             <!-- Form actions -->
             <div class="memory-actions">
@@ -248,10 +333,9 @@
                 ×
             </button>
 
-
             <div class="memory-view-content">
 
-                <!-- Memory details -->
+                <!-- Selected memory details -->
                 <h2 id="view-memory-title"></h2>
 
                 <p id="view-memory-notes"></p>
@@ -261,16 +345,85 @@
                     class="memory-location"
                 ></p>
 
-
-                <!--
-                    JavaScript adds saved photos and videos here.
-                    Each media item will have its own delete button.
-                -->
+                <!-- Saved photos and videos -->
                 <div
                     id="memory-photo-gallery"
                     class="memory-photo-gallery"
                     aria-label="Memory photos and videos"
                 ></div>
+
+
+                <!-- ================================= -->
+                <!-- PLACE VISIT HISTORY               -->
+                <!-- ================================= -->
+
+                <section
+                    id="place-visit-history"
+                    class="place-visit-history"
+                    aria-labelledby="place-history-heading"
+                >
+
+                    <h3 id="place-history-heading">
+                        Visits to this place
+                    </h3>
+
+                    <p id="place-history-subtitle">
+                        Explore your memories from different visits.
+                    </p>
+
+                    <div class="calendar-navigation">
+
+                        <button
+                            type="button"
+                            id="place-calendar-prev"
+                            aria-label="Previous month"
+                        >‹</button>
+
+                        <h4 id="place-calendar-month">October 2026</h4>
+
+                        <button
+                            type="button"
+                            id="place-calendar-next"
+                            aria-label="Next month"
+                        >›</button>
+
+                    </div>
+
+                    <div class="calendar-weekdays" aria-hidden="true">
+                        <span>Sun</span>
+                        <span>Mon</span>
+                        <span>Tue</span>
+                        <span>Wed</span>
+                        <span>Thu</span>
+                        <span>Fri</span>
+                        <span>Sat</span>
+                    </div>
+
+                    <!-- Dates with visits to this location. -->
+                    <div
+                        id="place-calendar-grid"
+                        class="calendar-grid"
+                        aria-label="Visit history calendar"
+                    ></div>
+
+                    <h4>Past visits</h4>
+
+                    <!-- JavaScript will list this place's visits here. -->
+                    <div
+                        id="place-past-visits"
+                        aria-live="polite"
+                    >
+                        <p>Your saved visits will appear here.</p>
+                    </div>
+
+                    <button
+                        type="button"
+                        id="add-visit-to-place"
+                    >
+                        Add another visit here
+                    </button>
+
+                </section>
 
 
                 <!-- Viewer actions -->

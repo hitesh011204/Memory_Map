@@ -141,7 +141,8 @@ searchForm.addEventListener('submit', async function (event) {
 
         if (results.length === 0) {
             const message = document.createElement('p');
-            message.textContent = 'No places found. Try another search.';
+            message.textContent =
+                'No places found. Try another search.';
             message.style.padding = '12px';
             searchResults.appendChild(message);
             return;
@@ -204,7 +205,8 @@ searchForm.addEventListener('submit', async function (event) {
 // 5. LOCAL DATABASE
 // =============================================
 
-// Keep the same database name and version to preserve existing memories.
+// Keep the same database name and version
+// to preserve existing memories.
 
 const memoryDBPromise = new Promise(function (resolve, reject) {
     const request = indexedDB.open('MemoryMapDB', 1);
@@ -277,7 +279,6 @@ let viewerMediaURLs = [];
 // =============================================
 
 // Older memories may use "photo" instead of "photos".
-// Keep support for those older records.
 
 function getMemoryPhotos(memory) {
     if (Array.isArray(memory.photos)) {
@@ -342,8 +343,6 @@ function clearViewerMedia() {
     viewerMediaURLs = [];
     memoryPhotoGallery.replaceChildren();
 }
-
-
 // =============================================
 // 11. DELETE ONE PHOTO OR VIDEO
 // =============================================
@@ -358,7 +357,6 @@ async function deleteMemoryMedia(memory, mediaType, mediaIndex) {
     try {
         const db = await memoryDBPromise;
 
-        // Create a new record without modifying the old object in place.
         const updatedMemory = {
             ...memory,
             photos: getMemoryPhotos(memory).slice(),
@@ -384,7 +382,6 @@ async function deleteMemoryMedia(memory, mediaType, mediaIndex) {
         transaction.objectStore('memories').put(updatedMemory);
 
         transaction.oncomplete = function () {
-            // Update the active viewer and map marker.
             currentMemory = updatedMemory;
 
             addMemoryMarker(updatedMemory);
@@ -392,7 +389,11 @@ async function deleteMemoryMedia(memory, mediaType, mediaIndex) {
         };
 
         transaction.onerror = function () {
-            console.error('Media deletion failed:', transaction.error);
+            console.error(
+                'Media deletion failed:',
+                transaction.error
+            );
+
             alert('Could not delete the media. Please try again.');
         };
 
@@ -412,7 +413,8 @@ function openMemoryViewer(memory) {
 
     clearViewerMedia();
 
-    viewMemoryTitle.textContent = memory.title;
+    viewMemoryTitle.textContent = memory.title || 'Untitled memory';
+
     viewMemoryNotes.textContent =
         memory.notes || 'No notes added yet.';
 
@@ -429,7 +431,8 @@ function openMemoryViewer(memory) {
         item.className = 'memory-media-item';
 
         const image = document.createElement('img');
-        image.alt = 'Photo ' + (index + 1) + ' from ' + memory.title;
+        image.alt =
+            'Photo ' + (index + 1) + ' from ' + memory.title;
         image.loading = 'lazy';
 
         const imageURL = URL.createObjectURL(photo);
@@ -441,7 +444,10 @@ function openMemoryViewer(memory) {
         deleteButton.type = 'button';
         deleteButton.className = 'delete-media-btn';
         deleteButton.textContent = 'Delete photo';
-        deleteButton.setAttribute('aria-label', 'Delete photo ' + (index + 1));
+        deleteButton.setAttribute(
+            'aria-label',
+            'Delete photo ' + (index + 1)
+        );
 
         deleteButton.addEventListener('click', function () {
             deleteMemoryMedia(memory, 'photos', index);
@@ -459,6 +465,7 @@ function openMemoryViewer(memory) {
         const videoElement = document.createElement('video');
         videoElement.controls = true;
         videoElement.preload = 'metadata';
+
         videoElement.setAttribute(
             'aria-label',
             'Video ' + (index + 1) + ' from ' + memory.title
@@ -473,7 +480,10 @@ function openMemoryViewer(memory) {
         deleteButton.type = 'button';
         deleteButton.className = 'delete-media-btn';
         deleteButton.textContent = 'Delete video';
-        deleteButton.setAttribute('aria-label', 'Delete video ' + (index + 1));
+        deleteButton.setAttribute(
+            'aria-label',
+            'Delete video ' + (index + 1)
+        );
 
         deleteButton.addEventListener('click', function () {
             deleteMemoryMedia(memory, 'videos', index);
@@ -485,7 +495,10 @@ function openMemoryViewer(memory) {
 
     if (photos.length === 0 && videos.length === 0) {
         const message = document.createElement('p');
-        message.textContent = 'No photos or videos saved for this memory yet.';
+
+        message.textContent =
+            'No photos or videos saved for this memory yet.';
+
         memoryPhotoGallery.appendChild(message);
     }
 
@@ -509,7 +522,7 @@ function addMemoryMarker(memory) {
         memory.lon
     ]).addTo(map);
 
-    marker.bindTooltip(memory.title);
+    marker.bindTooltip(memory.title || 'Untitled memory');
 
     marker.on('click', function () {
         openMemoryViewer(memory);
@@ -534,7 +547,7 @@ editMemoryButton.addEventListener('click', function () {
 
     memoryForm.reset();
 
-    memoryTitle.value = memory.title;
+    memoryTitle.value = memory.title || '';
     memoryNotes.value = memory.notes || '';
     memoryLat.value = memory.lat;
     memoryLon.value = memory.lon;
@@ -548,6 +561,9 @@ editMemoryButton.addEventListener('click', function () {
         'New media will be added; existing media will be kept.';
 
     formHeading.textContent = 'Edit Memory';
+
+    // Release temporary preview URLs before closing the viewer.
+    clearViewerMedia();
 
     memoryViewModal.hidden = true;
     memoryModal.hidden = false;
@@ -586,14 +602,19 @@ cancelMemory.addEventListener('click', function () {
     currentPhotoLabel.textContent =
         'Choose optional photos and videos.';
 });
-
-
 // =============================================
 // 17. SAVE A NEW OR EDITED MEMORY
 // =============================================
 
+let isSavingMemory = false;
+
 memoryForm.addEventListener('submit', async function (event) {
     event.preventDefault();
+
+    // Prevent accidental duplicate saves.
+    if (isSavingMemory) {
+        return;
+    }
 
     const title = memoryTitle.value.trim();
     const notes = memoryNotes.value.trim();
@@ -606,6 +627,7 @@ memoryForm.addEventListener('submit', async function (event) {
         return;
     }
 
+    // Validate coordinates.
     if (
         memoryLat.value.trim() === '' ||
         memoryLon.value.trim() === '' ||
@@ -620,15 +642,16 @@ memoryForm.addEventListener('submit', async function (event) {
         return;
     }
 
+    isSavingMemory = true;
+
     try {
         const db = await memoryDBPromise;
 
         const isEditing = editingMemoryId !== null;
 
-        // Read the latest saved record before editing, so media added
-        // previously is retained even when the form has no new files.
         let existingMemory = null;
 
+        // Fetch the latest saved version when editing.
         if (isEditing) {
             existingMemory = await new Promise(function (resolve, reject) {
                 const readTransaction = db.transaction(
@@ -650,16 +673,18 @@ memoryForm.addEventListener('submit', async function (event) {
             });
 
             if (!existingMemory) {
-                alert('This memory could not be found. Please reload the app.');
+                alert(
+                    'This memory could not be found. Please reload the app.'
+                );
                 return;
             }
         }
 
-        // Read all newly selected files.
+        // Collect newly selected photos and videos.
         const newPhotos = Array.from(memoryPhoto.files || []);
         const newVideos = Array.from(memoryVideo.files || []);
 
-        // Preserve old media and append newly selected media.
+        // Keep existing media when editing a memory.
         const existingPhotos = existingMemory
             ? getMemoryPhotos(existingMemory)
             : [];
@@ -688,6 +713,7 @@ memoryForm.addEventListener('submit', async function (event) {
             memory.id = editingMemoryId;
         }
 
+        // Save the memory to IndexedDB.
         const transaction = db.transaction(
             'memories',
             'readwrite'
@@ -699,33 +725,52 @@ memoryForm.addEventListener('submit', async function (event) {
             ? store.put(memory)
             : store.add(memory);
 
-        request.onsuccess = function () {
-            if (!isEditing) {
-                memory.id = request.result;
-            }
-        };
+        await new Promise(function (resolve, reject) {
+            request.onsuccess = function () {
+                if (!isEditing) {
+                    memory.id = request.result;
+                }
+            };
 
-        transaction.oncomplete = function () {
-            addMemoryMarker(memory);
+            transaction.oncomplete = function () {
+                resolve();
+            };
 
-            memoryModal.hidden = true;
-            memoryForm.reset();
+            transaction.onerror = function () {
+                reject(
+                    transaction.error ||
+                    new Error('Save transaction failed.')
+                );
+            };
 
-            editingMemoryId = null;
-            currentMemory = null;
+            transaction.onabort = function () {
+                reject(
+                    transaction.error ||
+                    new Error('Save transaction was cancelled.')
+                );
+            };
+        });
 
-            currentPhotoLabel.textContent =
-                'Choose optional photos and videos.';
-        };
+        // Refresh the pin using the saved information.
+        addMemoryMarker(memory);
 
-        transaction.onerror = function () {
-            console.error('Save transaction failed:', transaction.error);
-            alert('Could not save your memory. Please try again.');
-        };
+        // Close and reset the form.
+        memoryModal.hidden = true;
+        memoryForm.reset();
+
+        editingMemoryId = null;
+        currentMemory = null;
+
+        currentPhotoLabel.textContent =
+            'Choose optional photos and videos.';
 
     } catch (error) {
         console.error('Memory saving error:', error);
+
         alert('Could not save your memory. Please try again.');
+
+    } finally {
+        isSavingMemory = false;
     }
 });
 
@@ -762,5 +807,10 @@ async function loadMemories() {
     }
 }
 
-// Restore saved memory pins when the app starts.
+
+// =============================================
+// 19. RESTORE SAVED MEMORY PINS
+// =============================================
+
+// Load all memories when the app starts.
 loadMemories();
