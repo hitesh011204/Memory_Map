@@ -249,6 +249,27 @@ const formHeading = document.getElementById('memory-form-heading');
 const currentPhotoLabel = document.getElementById('current-photo-label');
 const cancelMemory = document.getElementById('cancel-memory');
 
+// Visit date input
+const memoryVisitDate = document.getElementById('memory-visit-date');
+
+// Home calendar
+const homeCalendarToggle = document.getElementById('home-calendar-toggle');
+const homeCalendarContent = document.getElementById('home-calendar-content');
+const homeCalendarPrev = document.getElementById('home-calendar-prev');
+const homeCalendarNext = document.getElementById('home-calendar-next');
+const homeCalendarMonth = document.getElementById('home-calendar-month');
+const homeCalendarGrid = document.getElementById('home-calendar-grid');
+const homeDayMemories = document.getElementById('home-day-memories');
+const homeSelectedDateHeading = document.getElementById('home-selected-date-heading');
+
+// Place calendar
+const placeCalendarPrev = document.getElementById('place-calendar-prev');
+const placeCalendarNext = document.getElementById('place-calendar-next');
+const placeCalendarMonth = document.getElementById('place-calendar-month');
+const placeCalendarGrid = document.getElementById('place-calendar-grid');
+const placePastVisits = document.getElementById('place-past-visits');
+const addVisitToPlace = document.getElementById('add-visit-to-place');
+
 // Memory viewer
 const memoryViewModal = document.getElementById('memory-view-modal');
 const memoryPhotoGallery = document.getElementById('memory-photo-gallery');
@@ -267,6 +288,24 @@ const editMemoryButton = document.getElementById('edit-memory');
 
 let editingMemoryId = null;
 let currentMemory = null;
+
+const today = new Date();
+
+let homeCalendarDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    1
+);
+
+let selectedHomeDate = getDateKey(today);
+
+let placeCalendarDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    1
+);
+
+let selectedPlaceDate = selectedHomeDate;
 
 const memoryMarkers = new Map();
 
@@ -314,6 +353,8 @@ map.on('dblclick', function (e) {
 function openNewMemoryForm(latlng) {
     memoryForm.reset();
 
+    memoryVisitDate.value = getDateKey(new Date());
+
     editingMemoryId = null;
     currentMemory = null;
 
@@ -343,8 +384,426 @@ function clearViewerMedia() {
     viewerMediaURLs = [];
     memoryPhotoGallery.replaceChildren();
 }
+
+
 // =============================================
-// 11. DELETE ONE PHOTO OR VIDEO
+// 11. CALENDAR HELPERS
+// =============================================
+
+function getDateKey(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return year + '-' + month + '-' + day;
+}
+
+// Older memories do not have visitDate,
+// so use their creation date.
+function getMemoryDate(memory) {
+    if (memory.visitDate) {
+        return memory.visitDate;
+    }
+
+    if (memory.createdAt) {
+        const createdDate = new Date(memory.createdAt);
+
+        if (!Number.isNaN(createdDate.getTime())) {
+            return getDateKey(createdDate);
+        }
+    }
+
+    return null;
+}
+
+function formatCalendarDate(dateKey) {
+    if (!dateKey) return 'Unknown date';
+
+    const [year, month, day] = dateKey.split('-').map(Number);
+
+    return new Date(year, month - 1, day).toLocaleDateString(
+        undefined,
+        {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        }
+    );
+}
+
+async function getAllMemories() {
+    const db = await memoryDBPromise;
+
+    return new Promise(function (resolve, reject) {
+        const transaction = db.transaction('memories', 'readonly');
+        const request = transaction.objectStore('memories').getAll();
+
+        request.onsuccess = function () {
+            resolve(request.result || []);
+        };
+
+        request.onerror = function () {
+            reject(request.error);
+        };
+    });
+}
+
+function changeMonth(date, amount) {
+    return new Date(
+        date.getFullYear(),
+        date.getMonth() + amount,
+        1
+    );
+}
+
+function renderCalendarDays(
+    container,
+    displayedMonth,
+    memories,
+    selectedDate,
+    onDateClick
+) {
+    container.replaceChildren();
+
+    const year = displayedMonth.getFullYear();
+    const month = displayedMonth.getMonth();
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const memoryDates = new Set(
+        memories.map(getMemoryDate).filter(Boolean)
+    );
+
+    // Empty cells before the first day of the month.
+    for (let i = 0; i < firstDay; i++) {
+        const emptyCell = document.createElement('span');
+
+        emptyCell.className = 'calendar-empty';
+        emptyCell.setAttribute('aria-hidden', 'true');
+
+        container.appendChild(emptyCell);
+    }
+
+    const todayKey = getDateKey(new Date());
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const dateKey = getDateKey(date);
+
+        const button = document.createElement('button');
+
+        button.type = 'button';
+        button.className = 'calendar-day';
+        button.textContent = String(day);
+
+        button.setAttribute(
+            'aria-label',
+            formatCalendarDate(dateKey)
+        );
+
+        if (memoryDates.has(dateKey)) {
+            button.classList.add('has-memory');
+        }
+
+        if (dateKey === selectedDate) {
+            button.classList.add('selected-date');
+            button.setAttribute('aria-pressed', 'true');
+        } else {
+            button.setAttribute('aria-pressed', 'false');
+        }
+
+        if (dateKey === todayKey) {
+            button.classList.add('today');
+        }
+
+        button.addEventListener('click', function () {
+            onDateClick(dateKey);
+        });
+
+        container.appendChild(button);
+    }
+}
+
+
+// =============================================
+// 12. HOME CALENDAR
+// =============================================
+
+async function showHomeDayMemories(dateKey) {
+    selectedHomeDate = dateKey;
+
+    homeSelectedDateHeading.textContent =
+        formatCalendarDate(dateKey);
+
+    homeDayMemories.replaceChildren();
+
+    try {
+        const memories = await getAllMemories();
+
+        const matchingMemories = memories.filter(function (memory) {
+            return getMemoryDate(memory) === dateKey;
+        });
+
+        if (matchingMemories.length === 0) {
+            const message = document.createElement('p');
+
+            message.textContent = 'No memories saved for this day.';
+
+            homeDayMemories.appendChild(message);
+            return;
+        }
+
+        matchingMemories.forEach(function (memory) {
+            const button = document.createElement('button');
+
+            button.type = 'button';
+            button.className = 'calendar-memory-item';
+            button.textContent = memory.title || 'Untitled memory';
+
+            button.addEventListener('click', function () {
+                const marker = memoryMarkers.get(memory.id);
+
+                if (marker) {
+                    map.setView(marker.getLatLng(), 16);
+                } else {
+                    map.setView([memory.lat, memory.lon], 16);
+                }
+
+                openMemoryViewer(memory);
+            });
+
+            homeDayMemories.appendChild(button);
+        });
+
+    } catch (error) {
+        console.error(
+            'Could not load memories for this date:',
+            error
+        );
+
+        const message = document.createElement('p');
+
+        message.textContent =
+            'Could not load memories. Please try again.';
+
+        homeDayMemories.appendChild(message);
+    }
+}
+
+async function renderHomeCalendar() {
+    const monthLabel = homeCalendarDate.toLocaleDateString(
+        undefined,
+        {
+            month: 'long',
+            year: 'numeric'
+        }
+    );
+
+    homeCalendarMonth.textContent = monthLabel;
+
+    try {
+        const memories = await getAllMemories();
+
+        renderCalendarDays(
+            homeCalendarGrid,
+            homeCalendarDate,
+            memories,
+            selectedHomeDate,
+            showHomeDayMemories
+        );
+
+        await showHomeDayMemories(selectedHomeDate);
+
+    } catch (error) {
+        console.error('Home calendar error:', error);
+    }
+}
+
+homeCalendarToggle.addEventListener('click', function () {
+    homeCalendarContent.hidden = !homeCalendarContent.hidden;
+
+    if (!homeCalendarContent.hidden) {
+        renderHomeCalendar();
+    }
+});
+
+homeCalendarPrev.addEventListener('click', function () {
+    homeCalendarDate = changeMonth(homeCalendarDate, -1);
+    renderHomeCalendar();
+});
+
+homeCalendarNext.addEventListener('click', function () {
+    homeCalendarDate = changeMonth(homeCalendarDate, 1);
+    renderHomeCalendar();
+});
+
+
+// =============================================
+// 13. PLACE VISIT CALENDAR
+// =============================================
+
+// Treat memories with the same title within 100 metres
+// as visits to the same place.
+function getDistanceInMetres(lat1, lon1, lat2, lon2) {
+    const earthRadius = 6371000;
+
+    const toRadians = function (degrees) {
+        return degrees * Math.PI / 180;
+    };
+
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRadians(lat1)) *
+        Math.cos(toRadians(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+    return 2 * earthRadius * Math.atan2(
+        Math.sqrt(a),
+        Math.sqrt(1 - a)
+    );
+}
+
+async function getPlaceVisits(memory) {
+    const memories = await getAllMemories();
+
+    const targetTitle = (memory.title || '').trim().toLowerCase();
+
+    return memories.filter(function (item) {
+        const sameTitle =
+            (item.title || '').trim().toLowerCase() === targetTitle;
+
+        const distance = getDistanceInMetres(
+            Number(memory.lat),
+            Number(memory.lon),
+            Number(item.lat),
+            Number(item.lon)
+        );
+
+        return sameTitle && distance <= 100;
+
+    }).sort(function (a, b) {
+        return (getMemoryDate(a) || '').localeCompare(
+            getMemoryDate(b) || ''
+        );
+    });
+}
+
+async function showPlaceDayVisits(dateKey) {
+    selectedPlaceDate = dateKey;
+
+    placePastVisits.replaceChildren();
+
+    try {
+        if (!currentMemory) return;
+
+        const visits = await getPlaceVisits(currentMemory);
+
+        const matchingVisits = visits.filter(function (visit) {
+            return getMemoryDate(visit) === dateKey;
+        });
+
+        if (matchingVisits.length === 0) {
+            const message = document.createElement('p');
+
+            message.textContent = 'No visits saved for this date.';
+
+            placePastVisits.appendChild(message);
+            return;
+        }
+
+        matchingVisits.forEach(function (visit) {
+            const button = document.createElement('button');
+
+            button.type = 'button';
+            button.className = 'calendar-memory-item';
+
+            button.textContent =
+                (visit.title || 'Untitled memory') +
+                (visit.notes ? ' — ' + visit.notes : '');
+
+            button.addEventListener('click', function () {
+                openMemoryViewer(visit);
+            });
+
+            placePastVisits.appendChild(button);
+        });
+
+    } catch (error) {
+        console.error('Could not load place visits:', error);
+
+        const message = document.createElement('p');
+
+        message.textContent =
+            'Could not load visits. Please try again.';
+
+        placePastVisits.appendChild(message);
+    }
+}
+
+async function renderPlaceCalendar() {
+    if (!currentMemory) return;
+
+    placeCalendarMonth.textContent =
+        placeCalendarDate.toLocaleDateString(
+            undefined,
+            {
+                month: 'long',
+                year: 'numeric'
+            }
+        );
+
+    try {
+        const visits = await getPlaceVisits(currentMemory);
+
+        renderCalendarDays(
+            placeCalendarGrid,
+            placeCalendarDate,
+            visits,
+            selectedPlaceDate,
+            showPlaceDayVisits
+        );
+
+        await showPlaceDayVisits(selectedPlaceDate);
+
+    } catch (error) {
+        console.error('Place calendar error:', error);
+    }
+}
+
+placeCalendarPrev.addEventListener('click', function () {
+    placeCalendarDate = changeMonth(placeCalendarDate, -1);
+    renderPlaceCalendar();
+});
+
+placeCalendarNext.addEventListener('click', function () {
+    placeCalendarDate = changeMonth(placeCalendarDate, 1);
+    renderPlaceCalendar();
+});
+
+addVisitToPlace.addEventListener('click', function () {
+    if (!currentMemory) return;
+
+    const place = currentMemory;
+
+    const coordinates = L.latLng(
+        Number(place.lat),
+        Number(place.lon)
+    );
+
+    openNewMemoryForm(coordinates);
+
+    memoryTitle.value = place.title || '';
+    memoryVisitDate.value = getDateKey(new Date());
+});
+
+
+// =============================================
+// 14. DELETE ONE PHOTO OR VIDEO
 // =============================================
 
 async function deleteMemoryMedia(memory, mediaType, mediaIndex) {
@@ -399,13 +858,14 @@ async function deleteMemoryMedia(memory, mediaType, mediaIndex) {
 
     } catch (error) {
         console.error('Media deletion error:', error);
+
         alert('Could not delete this media. Please try again.');
     }
 }
 
 
 // =============================================
-// 12. OPEN A SAVED MEMORY
+// 15. OPEN A SAVED MEMORY
 // =============================================
 
 function openMemoryViewer(memory) {
@@ -413,7 +873,8 @@ function openMemoryViewer(memory) {
 
     clearViewerMedia();
 
-    viewMemoryTitle.textContent = memory.title || 'Untitled memory';
+    viewMemoryTitle.textContent =
+        memory.title || 'Untitled memory';
 
     viewMemoryNotes.textContent =
         memory.notes || 'No notes added yet.';
@@ -428,22 +889,28 @@ function openMemoryViewer(memory) {
     // Display photos.
     photos.forEach(function (photo, index) {
         const item = document.createElement('div');
+
         item.className = 'memory-media-item';
 
         const image = document.createElement('img');
+
         image.alt =
             'Photo ' + (index + 1) + ' from ' + memory.title;
+
         image.loading = 'lazy';
 
         const imageURL = URL.createObjectURL(photo);
+
         viewerMediaURLs.push(imageURL);
 
         image.src = imageURL;
 
         const deleteButton = document.createElement('button');
+
         deleteButton.type = 'button';
         deleteButton.className = 'delete-media-btn';
         deleteButton.textContent = 'Delete photo';
+
         deleteButton.setAttribute(
             'aria-label',
             'Delete photo ' + (index + 1)
@@ -454,15 +921,18 @@ function openMemoryViewer(memory) {
         });
 
         item.append(image, deleteButton);
+
         memoryPhotoGallery.appendChild(item);
     });
 
     // Display videos.
     videos.forEach(function (video, index) {
         const item = document.createElement('div');
+
         item.className = 'memory-media-item';
 
         const videoElement = document.createElement('video');
+
         videoElement.controls = true;
         videoElement.preload = 'metadata';
 
@@ -472,14 +942,17 @@ function openMemoryViewer(memory) {
         );
 
         const videoURL = URL.createObjectURL(video);
+
         viewerMediaURLs.push(videoURL);
 
         videoElement.src = videoURL;
 
         const deleteButton = document.createElement('button');
+
         deleteButton.type = 'button';
         deleteButton.className = 'delete-media-btn';
         deleteButton.textContent = 'Delete video';
+
         deleteButton.setAttribute(
             'aria-label',
             'Delete video ' + (index + 1)
@@ -490,6 +963,7 @@ function openMemoryViewer(memory) {
         });
 
         item.append(videoElement, deleteButton);
+
         memoryPhotoGallery.appendChild(item);
     });
 
@@ -503,11 +977,26 @@ function openMemoryViewer(memory) {
     }
 
     memoryViewModal.hidden = false;
+
+    // Open the place calendar at this memory's visit date.
+    selectedPlaceDate =
+        getMemoryDate(memory) || getDateKey(new Date());
+
+    const [visitYear, visitMonth] =
+        selectedPlaceDate.split('-').map(Number);
+
+    placeCalendarDate = new Date(
+        visitYear,
+        visitMonth - 1,
+        1
+    );
+
+    renderPlaceCalendar();
 }
 
 
 // =============================================
-// 13. CREATE OR UPDATE A MEMORY MARKER
+// 16. CREATE OR UPDATE A MEMORY MARKER
 // =============================================
 
 function addMemoryMarker(memory) {
@@ -533,7 +1022,7 @@ function addMemoryMarker(memory) {
 
 
 // =============================================
-// 14. EDIT AN EXISTING MEMORY
+// 17. EDIT AN EXISTING MEMORY
 // =============================================
 
 editMemoryButton.addEventListener('click', function () {
@@ -549,6 +1038,10 @@ editMemoryButton.addEventListener('click', function () {
 
     memoryTitle.value = memory.title || '';
     memoryNotes.value = memory.notes || '';
+
+    memoryVisitDate.value =
+        getMemoryDate(memory) || getDateKey(new Date());
+
     memoryLat.value = memory.lat;
     memoryLon.value = memory.lon;
 
@@ -573,7 +1066,7 @@ editMemoryButton.addEventListener('click', function () {
 
 
 // =============================================
-// 15. CLOSE THE MEMORY VIEWER
+// 18. CLOSE THE MEMORY VIEWER
 // =============================================
 
 function closeMemoryViewer() {
@@ -588,7 +1081,7 @@ closeMemoryButton.addEventListener('click', closeMemoryViewer);
 
 
 // =============================================
-// 16. CANCEL ADDING OR EDITING
+// 19. CANCEL ADDING OR EDITING
 // =============================================
 
 cancelMemory.addEventListener('click', function () {
@@ -602,8 +1095,10 @@ cancelMemory.addEventListener('click', function () {
     currentPhotoLabel.textContent =
         'Choose optional photos and videos.';
 });
+
+
 // =============================================
-// 17. SAVE A NEW OR EDITED MEMORY
+// 20. SAVE A NEW OR EDITED MEMORY
 // =============================================
 
 let isSavingMemory = false;
@@ -618,6 +1113,15 @@ memoryForm.addEventListener('submit', async function (event) {
 
     const title = memoryTitle.value.trim();
     const notes = memoryNotes.value.trim();
+    const visitDate = memoryVisitDate.value;
+
+    if (
+        !visitDate ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(visitDate)
+    ) {
+        alert('Please select a valid visit date.');
+        return;
+    }
 
     const lat = Number(memoryLat.value);
     const lon = Number(memoryLon.value);
@@ -676,6 +1180,7 @@ memoryForm.addEventListener('submit', async function (event) {
                 alert(
                     'This memory could not be found. Please reload the app.'
                 );
+
                 return;
             }
         }
@@ -698,6 +1203,7 @@ memoryForm.addEventListener('submit', async function (event) {
 
             title: title,
             notes: notes,
+            visitDate: visitDate,
             lat: lat,
             lon: lon,
 
@@ -754,8 +1260,13 @@ memoryForm.addEventListener('submit', async function (event) {
         // Refresh the pin using the saved information.
         addMemoryMarker(memory);
 
+        if (!homeCalendarContent.hidden) {
+            renderHomeCalendar();
+        }
+
         // Close and reset the form.
         memoryModal.hidden = true;
+
         memoryForm.reset();
 
         editingMemoryId = null;
@@ -776,7 +1287,7 @@ memoryForm.addEventListener('submit', async function (event) {
 
 
 // =============================================
-// 18. LOAD SAVED MEMORIES
+// 21. LOAD SAVED MEMORIES
 // =============================================
 
 async function loadMemories() {
@@ -809,7 +1320,7 @@ async function loadMemories() {
 
 
 // =============================================
-// 19. RESTORE SAVED MEMORY PINS
+// 22. RESTORE SAVED MEMORY PINS
 // =============================================
 
 // Load all memories when the app starts.
